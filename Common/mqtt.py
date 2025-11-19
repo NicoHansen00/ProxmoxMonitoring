@@ -14,20 +14,14 @@ class mqtt:
         except Exception as ex:
             raise ex
             
-    def subscribe(self, topics: str=["/"]):
+    def subscribe(self, topic: str=["/"], ):
         try:
             mqttc = paho_cli.Client()
             mqttc.on_connect = self._on_connect
             mqttc.on_message = self._on_message
             mqttc.connect(host=self.hostname, port=self.port)
-            if len(topics) > 1:
-                print("Subcribed topics:")
-            else:
-                print("Subscribed topic:")
-            for topic in topics:
-                print(topic)
-                mqttc.subscribe(topic)
-            mqttc.loop_forever()
+            mqttc.subscribe(topic)
+            mqttc.loop_start()
         except Exception as ex:
             mqttc.disconnect()
             raise ex
