@@ -1,8 +1,9 @@
-from fastapi import FastAPI
-import paho.mqtt.client as paho_cli
-import threading
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from fastapi import FastAPI
+from fastapi_mqtt.config import MQTTConfig
+from fastapi_mqtt.fastmqtt import FastMQTT
+import threading
 
 class SharedData:
     def __init__(self):
@@ -11,31 +12,43 @@ class SharedData:
 
 shared_data = SharedData()
 
-def on_connect(client, userdata, flags, rc):
-    print(f"Connected with result code {rc}")
-    client.subscribe("/ProxmoxMonitoring/#")
+fast_mqtt = FastMQTT(config=MQTTConfig())
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    await fast_mqtt.mqtt_startup()
+    yield
+    await fast_mqtt.mqtt_shutdown()
 
-def on_message(client, userdata, msg):
-    decoded = msg.payload.decode()
-    print(f"Received: {decoded}")
-    
+app = FastAPI(lifespan=_lifespan)
+
+@fast_mqtt.on_connect()
+def connect(client, flags, rc, properties):
+    fast_mqtt.client.subscribe("ProxmoxMonitoring/#")
+    print("Connected: ", client, flags, rc, properties)
+
+@fast_mqtt.on_message()
+async def message(client, topic, payload, qos, properties):
+    print("Received message: ",topic, payload.decode(), qos, properties)
+
     with shared_data.lock:
-        shared_data.value = decoded
+        shared_data.value = payload.decode()
+    return 0
 
-def start_mqtt():
-    mqttc = paho_cli.Client()
-    mqttc.on_connect = on_connect
-    mqttc.on_message = on_message
-    mqttc.connect("localhost", 1883)
-    mqttc.loop_forever()   # run forever in this thread
+@fast_mqtt.subscribe("my/mqtt/topic/#")
+async def message_to_topic(client, topic, payload, qos, properties):
+    print("Received message to specific topic: ", topic, payload.decode(), qos, properties)
 
-@app.on_event("startup")
-def startup_event():
-    t = threading.Thread(target=start_mqtt, daemon=True)
-    t.start()
+@fast_mqtt.on_disconnect()
+def disconnect(client, packet, exc=None):
+    print("Disconnected")
+
+@fast_mqtt.on_subscribe()
+def subscribe(client, mid, qos, properties):
+    print("subscribed", client, mid, qos, properties)
+
 
 @app.get("/")
-async def root():
+async def func():
     with shared_data.lock:
         return {"data": shared_data.value}
