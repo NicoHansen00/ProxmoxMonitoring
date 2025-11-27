@@ -1,28 +1,30 @@
 import paho.mqtt.client as paho_cli
 from psutil._common import shwtemp
 import json
+import socket
 from pathlib import Path
 
-data: dict[str, list[shwtemp]]
+def sim():
 
-message = "ProxmoxMonitoring/udesktop/CPU/acpitz/0/current"
+    temp = simulatetemps()
+    temps : list[str] = {}
 
-def subscribe():
-    try:
-        mqttc = paho_cli.Client()
-        mqttc.on_connect = _on_connect
-        mqttc.on_message = _on_message
-        mqttc.connect(host="localhost")
-        mqttc.subscribe("ProxmoxMonitoring/#")
-        mqttc.loop_forever()
-    except Exception as ex:
-        mqttc.disconnect()
-        raise ex
+    for key, datas in temp:
+        
 
-def _on_connect(client, userdata, flags, reason_code):
-    print(f"Connected with result code {reason_code}")
+    
 
-def _on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
+    return {"name" : socket.gethostname(),
+            "data": [simulatetemps()] }
 
-subscribe()
+def simulatetemps(): 
+    return {"acpitz": [shwtemp('', 11, None, None),
+                       shwtemp('', 11, None, None)],
+            "nvme": [shwtemp('', 23, 89.85, 89.85), 
+                     shwtemp('', 23, 89.85, 89.85)],
+                "pch_skylake": [shwtemp('', 44, None, None)],
+                "coretemp": [shwtemp('Package id 1', 76, 100, 100), 
+                        shwtemp('Core 0', 76, 100, 100),
+                        shwtemp('Core 1', 76, 100, 100)]}
+
+print(json.dumps(sim()))

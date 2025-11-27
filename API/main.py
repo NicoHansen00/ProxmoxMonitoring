@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi_mqtt.config import MQTTConfig
 from fastapi_mqtt.fastmqtt import FastMQTT
+from fastapi.middleware.cors import CORSMiddleware
 import threading
 
 class SharedData:
@@ -20,7 +21,19 @@ async def _lifespan(_app: FastAPI):
     yield
     await fast_mqtt.mqtt_shutdown()
 
+origins = [
+    "*",
+]
+
 app = FastAPI(lifespan=_lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @fast_mqtt.on_connect()
 def connect(client, flags, rc, properties):
@@ -48,7 +61,7 @@ def subscribe(client, mid, qos, properties):
     print("subscribed", client, mid, qos, properties)
 
 
-@app.get("/")
+@app.get("/items")
 async def func():
     with shared_data.lock:
         return {"data": shared_data.value}

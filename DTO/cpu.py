@@ -8,11 +8,19 @@ from ..Common.store import store
 
 def main():
     try:
-        publish(psutil.sensors_temperatures() if len(sys.argv) < 2 else simulatetemps())
+        publish(psutil.sensors_temperatures() if len(sys.argv) > 1 else sim())
     except Exception as ex:
         print(ex)
 
-def simulatetemps(): 
+def sim():
+    return {"name" : socket.gethostname(),
+            "data": [simulatetemperatures()] }
+
+def read():
+    return {"name" : socket.gethostname(),
+            "data": [psutil.sensors_temperatures()] }
+
+def simulatetemperatures(): 
     temperature = store.increment()
     return {"acpitz": [{"label":'', "current": temperature, "high":None, "critical":None},
                        {"label":'', "current": temperature, "high":None, "critical":None}],
@@ -25,7 +33,7 @@ def simulatetemps():
 
 def publish(data: dict[str, list[shwtemp]] ):
     client = store.mqttbrokerinfo()
-    mqttc = mqtt(client["ip"], client["port"])
+    mqttc = mqtt(sys.argv[1], client["port"])
     topic = "ProxmoxMonitoring/" + socket.gethostname() + "/CPU/"
     mqttc.publish(json.dumps(data), topic)
 

@@ -14,7 +14,7 @@ class store:
             else:
                 data["current"] = data["current"] + data["increment"]
 
-        with open(incfilename, mode="w", encoding="utf-8") as write_file:        
+        with open(Path(__file__).parent / incfilename, mode="w", encoding="utf-8") as write_file:        
             json.dump(data, write_file) 
         return int(data["current"])
     
